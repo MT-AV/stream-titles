@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stream Titles — Sojourn Midtown</title>
+<style>
+  :root{
+    --booth-black:#0d0d0f;
+    --panel:#16161a;
+    --edge:#26262c;
+    --working-gold:#bfa267;
+    --display-gold:#e2b749;
+    --liturgy-blue:#285264;
+    --text:#f2efe8;
+    --dim:#8b8b93;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--booth-black);
+    color:var(--text);
+    font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:28px 16px 48px;
+  }
+  header{width:100%;max-width:640px;margin-bottom:22px}
+  .eyebrow{
+    font-size:11px;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--working-gold);margin-bottom:6px;
+  }
+  h1{font-size:22px;font-weight:600;letter-spacing:.01em}
+  h1 .date{color:var(--dim);font-weight:400}
+  .tabs{
+    width:100%;max-width:640px;
+    display:flex;gap:8px;margin-bottom:14px;
+  }
+  .tab{
+    flex:1;padding:13px 0;
+    background:var(--panel);
+    border:1px solid var(--edge);
+    border-radius:10px 10px 0 0;
+    color:var(--dim);
+    font-size:14px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    cursor:pointer;transition:color .15s,border-color .15s;
+  }
+  .tab[aria-selected="true"]{
+    color:var(--display-gold);
+    border-color:var(--working-gold);
+    border-bottom-color:transparent;
+  }
+  .tab:focus-visible{outline:2px solid var(--display-gold);outline-offset:2px}
+  .panel{
+    width:100%;max-width:640px;
+    background:var(--panel);
+    border:1px solid var(--edge);
+    border-radius:0 0 14px 14px;
+    padding:26px 24px 24px;
+  }
+  .slide{
+    background:#000;
+    border-radius:8px;
+    padding:30px 24px;
+    margin-bottom:20px;
+    border-left:3px solid var(--working-gold);
+  }
+  pre{
+    font-family:inherit;
+    font-size:clamp(16px,2.6vw,19px);
+    line-height:1.55;
+    white-space:pre-wrap;
+    word-break:break-word;
+    color:var(--text);
+  }
+  .copybtn{
+    width:100%;padding:18px 0;
+    font-size:17px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    background:var(--display-gold);
+    color:#141414;
+    border:none;border-radius:10px;
+    cursor:pointer;
+    transition:transform .08s, background .2s;
+  }
+  .copybtn:active{transform:scale(.985)}
+  .copybtn.copied{background:var(--liturgy-blue);color:var(--text)}
+  .copybtn:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+  .hint{margin-top:12px;font-size:12px;color:var(--dim);text-align:center}
+  footer{margin-top:26px;font-size:11px;color:var(--dim);letter-spacing:.04em}
+  @media (prefers-reduced-motion: reduce){
+    .copybtn{transition:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">Sojourn Midtown &middot; Switcher</div>
+  <h1>Stream titles <span class="date" id="dateline"></span></h1>
+</header>
+
+<div class="tabs" role="tablist" aria-label="Stream text">
+  <button class="tab" id="tab-title" role="tab" aria-selected="true" aria-controls="panel-body">Title</button>
+  <button class="tab" id="tab-desc" role="tab" aria-selected="false" aria-controls="panel-body">Description</button>
+</div>
+
+<div class="panel" id="panel-body" role="tabpanel">
+  <div class="slide"><pre id="content"></pre></div>
+  <button class="copybtn" id="copy">Copy title</button>
+  <div class="hint">Paste directly into YouTube / Facebook — no retyping.</div>
+</div>
+
+<footer>sojournmidtown.com/sermons</footer>
+
+<script>
+  // ---- weekly text: overridden by ?t= and ?d= URL params (URI-encoded) ----
+  var FALLBACK_TITLE = "Know Your Limits \u00B7 Drew Morgan";
+  var FALLBACK_DESC = "August 2, 2026 Sunday Service Livestream\nThe Wise Life: How to Live in God's World - Know Your Limits\nProverbs 3:5-7\nsojournmidtown.com/sermons";
+
+  var q = new URLSearchParams(location.search);
+  var TITLE = q.get("t") || FALLBACK_TITLE;
+  var DESC = q.get("d") || FALLBACK_DESC;
+
+  // dateline from first line of description if it looks like a date
+  var firstLine = DESC.split("\n")[0] || "";
+  var m = firstLine.match(/^([A-Z][a-z]+ \d{1,2}, \d{4})/);
+  document.getElementById("dateline").textContent = m ? "\u2014 " + m[1] : "";
+
+  var tabs = {
+    title: {btn: document.getElementById("tab-title"), text: function(){return TITLE;}, label: "Copy title"},
+    desc:  {btn: document.getElementById("tab-desc"),  text: function(){return DESC;},  label: "Copy description"}
+  };
+  var content = document.getElementById("content");
+  var copyBtn = document.getElementById("copy");
+  var active = "title";
+
+  function render(){
+    content.textContent = tabs[active].text();
+    copyBtn.textContent = tabs[active].label;
+    copyBtn.classList.remove("copied");
+    for (var k in tabs) tabs[k].btn.setAttribute("aria-selected", String(k === active));
+  }
+  tabs.title.btn.addEventListener("click", function(){active="title";render();});
+  tabs.desc.btn.addEventListener("click", function(){active="desc";render();});
+
+  copyBtn.addEventListener("click", function(){
+    var txt = tabs[active].text();
+    function done(){
+      copyBtn.textContent = "Copied \u2713";
+      copyBtn.classList.add("copied");
+      setTimeout(render, 1600);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done, fallback);
+    } else { fallback(); }
+    function fallback(){
+      var ta = document.createElement("textarea");
+      ta.value = txt; document.body.appendChild(ta);
+      ta.select(); document.execCommand("copy"); ta.remove(); done();
+    }
+  });
+
+  render();
+</script>
+</body>
+</html>
