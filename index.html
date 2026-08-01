@@ -33,50 +33,37 @@
   }
   h1{font-size:22px;font-weight:600;letter-spacing:.01em}
   h1 .date{color:var(--dim);font-weight:400}
-  .tabs{
+  .block{
     width:100%;max-width:640px;
-    display:flex;gap:8px;margin-bottom:14px;
-  }
-  .tab{
-    flex:1;padding:13px 0;
     background:var(--panel);
     border:1px solid var(--edge);
-    border-radius:10px 10px 0 0;
-    color:var(--dim);
-    font-size:14px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
-    cursor:pointer;transition:color .15s,border-color .15s;
+    border-radius:14px;
+    padding:20px 22px 22px;
+    margin-bottom:18px;
   }
-  .tab[aria-selected="true"]{
+  .label{
+    font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
     color:var(--display-gold);
-    border-color:var(--working-gold);
-    border-bottom-color:transparent;
-  }
-  .tab:focus-visible{outline:2px solid var(--display-gold);outline-offset:2px}
-  .panel{
-    width:100%;max-width:640px;
-    background:var(--panel);
-    border:1px solid var(--edge);
-    border-radius:0 0 14px 14px;
-    padding:26px 24px 24px;
+    margin-bottom:10px;
   }
   .slide{
     background:#000;
     border-radius:8px;
-    padding:30px 24px;
-    margin-bottom:20px;
+    padding:22px 20px;
+    margin-bottom:16px;
     border-left:3px solid var(--working-gold);
   }
   pre{
     font-family:inherit;
-    font-size:clamp(16px,2.6vw,19px);
+    font-size:clamp(15px,2.4vw,18px);
     line-height:1.55;
     white-space:pre-wrap;
     word-break:break-word;
     color:var(--text);
   }
   .copybtn{
-    width:100%;padding:18px 0;
-    font-size:17px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    width:100%;padding:16px 0;
+    font-size:16px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
     background:var(--display-gold);
     color:#141414;
     border:none;border-radius:10px;
@@ -86,8 +73,8 @@
   .copybtn:active{transform:scale(.985)}
   .copybtn.copied{background:var(--liturgy-blue);color:var(--text)}
   .copybtn:focus-visible{outline:2px solid var(--text);outline-offset:2px}
-  .hint{margin-top:12px;font-size:12px;color:var(--dim);text-align:center}
-  footer{margin-top:26px;font-size:11px;color:var(--dim);letter-spacing:.04em}
+  .hint{margin-top:4px;font-size:12px;color:var(--dim);text-align:center}
+  footer{margin-top:12px;font-size:11px;color:var(--dim);letter-spacing:.04em}
   @media (prefers-reduced-motion: reduce){
     .copybtn{transition:none}
   }
@@ -99,17 +86,19 @@
   <h1>Stream titles <span class="date" id="dateline"></span></h1>
 </header>
 
-<div class="tabs" role="tablist" aria-label="Stream text">
-  <button class="tab" id="tab-title" role="tab" aria-selected="true" aria-controls="panel-body">Title</button>
-  <button class="tab" id="tab-desc" role="tab" aria-selected="false" aria-controls="panel-body">Description</button>
-</div>
+<section class="block">
+  <div class="label">Title</div>
+  <div class="slide"><pre id="title-text"></pre></div>
+  <button class="copybtn" id="copy-title">Copy title</button>
+</section>
 
-<div class="panel" id="panel-body" role="tabpanel">
-  <div class="slide"><pre id="content"></pre></div>
-  <button class="copybtn" id="copy">Copy title</button>
-  <div class="hint">Paste directly into YouTube / Facebook — no retyping.</div>
-</div>
+<section class="block">
+  <div class="label">Description</div>
+  <div class="slide"><pre id="desc-text"></pre></div>
+  <button class="copybtn" id="copy-desc">Copy description</button>
+</section>
 
+<div class="hint">Paste directly into YouTube / Facebook — no retyping.</div>
 <footer>sojournmidtown.com/sermons</footer>
 
 <script>
@@ -121,46 +110,37 @@
   var TITLE = q.get("t") || FALLBACK_TITLE;
   var DESC = q.get("d") || FALLBACK_DESC;
 
-  // dateline from first line of description if it looks like a date
   var firstLine = DESC.split("\n")[0] || "";
   var m = firstLine.match(/^([A-Z][a-z]+ \d{1,2}, \d{4})/);
   document.getElementById("dateline").textContent = m ? "\u2014 " + m[1] : "";
 
-  var tabs = {
-    title: {btn: document.getElementById("tab-title"), text: function(){return TITLE;}, label: "Copy title"},
-    desc:  {btn: document.getElementById("tab-desc"),  text: function(){return DESC;},  label: "Copy description"}
-  };
-  var content = document.getElementById("content");
-  var copyBtn = document.getElementById("copy");
-  var active = "title";
+  document.getElementById("title-text").textContent = TITLE;
+  document.getElementById("desc-text").textContent = DESC;
 
-  function render(){
-    content.textContent = tabs[active].text();
-    copyBtn.textContent = tabs[active].label;
-    copyBtn.classList.remove("copied");
-    for (var k in tabs) tabs[k].btn.setAttribute("aria-selected", String(k === active));
+  function wire(btnId, getText, label){
+    var btn = document.getElementById(btnId);
+    btn.addEventListener("click", function(){
+      var txt = getText();
+      function done(){
+        btn.textContent = "Copied \u2713";
+        btn.classList.add("copied");
+        setTimeout(function(){
+          btn.textContent = label;
+          btn.classList.remove("copied");
+        }, 1600);
+      }
+      function fallback(){
+        var ta = document.createElement("textarea");
+        ta.value = txt; document.body.appendChild(ta);
+        ta.select(); document.execCommand("copy"); ta.remove(); done();
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(txt).then(done, fallback);
+      } else { fallback(); }
+    });
   }
-  tabs.title.btn.addEventListener("click", function(){active="title";render();});
-  tabs.desc.btn.addEventListener("click", function(){active="desc";render();});
-
-  copyBtn.addEventListener("click", function(){
-    var txt = tabs[active].text();
-    function done(){
-      copyBtn.textContent = "Copied \u2713";
-      copyBtn.classList.add("copied");
-      setTimeout(render, 1600);
-    }
-    if (navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(txt).then(done, fallback);
-    } else { fallback(); }
-    function fallback(){
-      var ta = document.createElement("textarea");
-      ta.value = txt; document.body.appendChild(ta);
-      ta.select(); document.execCommand("copy"); ta.remove(); done();
-    }
-  });
-
-  render();
+  wire("copy-title", function(){return TITLE;}, "Copy title");
+  wire("copy-desc", function(){return DESC;}, "Copy description");
 </script>
 </body>
 </html>
